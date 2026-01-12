@@ -1,17 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CodeDisplay } from '@/components/code-display'
 import { parseTypeScriptInterface, validateTypeScript } from '@/lib/parser'
 import { generateMockData } from '@/lib/generator'
 import { generateInterfaceFromJSON } from '@/lib/json-to-interface'
-import type { AIEnhancement } from '@/lib/types'
 
 const DEFAULT_INTERFACE = `interface User {
   id: string
@@ -35,16 +35,19 @@ export default function Page() {
   const [interfaceCode, setInterfaceCode] = useState(DEFAULT_INTERFACE)
   const [jsonInput, setJsonInput] = useState('')
   const [generatedInterface, setGeneratedInterface] = useState('')
+  const [editableInterface, setEditableInterface] = useState('')
   const [count, setCount] = useState(3)
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-  const [useAI, setUseAI] = useState(false)
-  const [aiApiKey, setAiApiKey] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isJsonExpanded, setIsJsonExpanded] = useState(false)
+  const [isInterfaceExpanded, setIsInterfaceExpanded] = useState(false)
 
   const handleGenerateInterface = () => {
     setError('')
     setGeneratedInterface('')
+    setEditableInterface('')
+    setOutput('')
 
     try {
       if (!jsonInput.trim()) {
@@ -54,10 +57,18 @@ export default function Page() {
 
       const interfaceCode = generateInterfaceFromJSON(jsonInput, 'GeneratedData')
       setGeneratedInterface(interfaceCode)
-      setInterfaceCode(interfaceCode)
+      setEditableInterface(interfaceCode)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate interface')
     }
+  }
+
+  const handleUseInterface = () => {
+    setInterfaceCode(editableInterface)
+    setInputMode('interface')
+    setGeneratedInterface('')
+    setEditableInterface('')
+    setJsonInput('')
   }
 
   const handleGenerate = async () => {
@@ -66,13 +77,8 @@ export default function Page() {
     setIsGenerating(true)
 
     try {
-      // Use the appropriate interface code
-      const codeToUse = inputMode === 'json' && generatedInterface
-        ? generatedInterface
-        : interfaceCode
-
       // Validate TypeScript
-      const validation = validateTypeScript(codeToUse)
+      const validation = validateTypeScript(interfaceCode)
       if (!validation.valid) {
         setError('TypeScript parsing errors:\n' + validation.errors.join('\n'))
         setIsGenerating(false)
@@ -80,38 +86,15 @@ export default function Page() {
       }
 
       // Parse interfaces
-      const interfaces = parseTypeScriptInterface(codeToUse)
+      const interfaces = parseTypeScriptInterface(interfaceCode)
       if (interfaces.length === 0) {
         setError('No interfaces found. Please define at least one interface.')
         setIsGenerating(false)
         return
       }
 
-      // Get AI enhancements if enabled
-      let aiEnhancements: AIEnhancement[] | undefined
-      if (useAI && aiApiKey.trim()) {
-        try {
-          const response = await fetch('/api/enhance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              interface: codeToUse,
-              apiKey: aiApiKey
-            })
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            aiEnhancements = data.enhancements
-          }
-        } catch (err) {
-          console.error('AI enhancement failed:', err)
-          // Continue without AI enhancements
-        }
-      }
-
       // Generate mock data
-      const mockData = generateMockData(interfaces, { count }, aiEnhancements)
+      const mockData = generateMockData(interfaces, { count })
 
       setOutput(JSON.stringify(mockData, null, 2))
     } catch (err) {
@@ -133,9 +116,9 @@ export default function Page() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2 flex-1 min-h-0 overflow-auto">
+        <div className="grid gap-6 lg:grid-cols-2 flex-1 min-h-0">
           {/* Input Section */}
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6 min-h-0 overflow-y-auto">
             {/* Input Mode Selector */}
             <Card>
               <CardHeader>
@@ -166,66 +149,108 @@ export default function Page() {
 
             {/* Conditional Input */}
             {inputMode === 'interface' ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>TypeScript Interface</CardTitle>
-                  <CardDescription>
-                    Paste your TypeScript interface definition
-                  </CardDescription>
+              <Card className="flex flex-col flex-1 min-h-0">
+                <CardHeader className="flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>TypeScript Interface</CardTitle>
+                      <CardDescription>
+                        Paste your TypeScript interface definition
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => setIsInterfaceExpanded(true)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      Expand
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1 min-h-0 overflow-hidden">
                   <Textarea
                     value={interfaceCode}
                     onChange={(e) => setInterfaceCode(e.target.value)}
-                    className="font-mono text-sm min-h-[300px]"
+                    className="font-mono text-sm h-full resize-none"
                     placeholder="interface MyType { ... }"
                   />
                 </CardContent>
               </Card>
             ) : (
               <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Example JSON</CardTitle>
-                    <CardDescription>
-                      Paste example JSON data to auto-generate interface
-                    </CardDescription>
+                <Card className="flex flex-col flex-1 min-h-0">
+                  <CardHeader className="flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Example JSON</CardTitle>
+                        <CardDescription>
+                          Paste example JSON data to auto-generate interface
+                        </CardDescription>
+                      </div>
+                      <Button
+                        onClick={() => setIsJsonExpanded(true)}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Expand
+                      </Button>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="flex-1 flex flex-col gap-3 min-h-0">
                     <Textarea
                       value={jsonInput}
                       onChange={(e) => setJsonInput(e.target.value)}
-                      className="font-mono text-sm min-h-[200px]"
+                      className="font-mono text-sm flex-1 resize-none"
                       placeholder='[{ "name": "John", "age": 30 }]'
                     />
-                    <Button
-                      onClick={handleGenerateInterface}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Generate Interface
-                    </Button>
+                    <div className="flex-shrink-0 space-y-3">
+                      <Button
+                        onClick={handleGenerateInterface}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Generate Interface
+                      </Button>
+                      {generatedInterface && (
+                        <p className="text-sm text-green-400">
+                          ✓ Interface generated! Review and edit it in the right panel.
+                        </p>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
-
-                {generatedInterface && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        Generated Interface
-                        <Badge>Preview</Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        This interface will be used for mock generation
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <CodeDisplay code={generatedInterface} language="typescript" />
-                    </CardContent>
-                  </Card>
-                )}
               </>
             )}
+
+            {/* Full-screen Editor Modal */}
+            <Dialog open={isJsonExpanded} onOpenChange={setIsJsonExpanded}>
+              <DialogContent
+                className="sm:max-w-[90vw] w-[90vw] max-h-[90vh] h-[90vh] flex flex-col"
+                closeButtonClassName="top-0 right-0"
+              >
+                <Textarea
+                  value={jsonInput}
+                  onChange={(e) => setJsonInput(e.target.value)}
+                  className="font-mono text-sm h-full w-full resize-none border-none! ring-0!"
+                  placeholder='[{ "name": "John", "age": 30 }]'
+                />
+              </DialogContent>
+            </Dialog>
+
+            {/* Full-screen TypeScript Interface Editor Modal */}
+            <Dialog open={isInterfaceExpanded} onOpenChange={setIsInterfaceExpanded}>
+              <DialogContent
+                className="sm:max-w-[90vw] w-[90vw] max-h-[90vh] h-[90vh] flex flex-col"
+                closeButtonClassName="top-0 right-0"
+              >
+                <Textarea
+                  value={interfaceCode}
+                  onChange={(e) => setInterfaceCode(e.target.value)}
+                  className="font-mono text-sm h-full w-full resize-none border-none! ring-0!"
+                  placeholder='[{ "name": "John", "age": 30 }]'
+                />
+              </DialogContent>
+            </Dialog>
 
             <Card>
               <CardHeader>
@@ -244,30 +269,6 @@ export default function Page() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="useAI"
-                      checked={useAI}
-                      onChange={(e) => setUseAI(e.target.checked)}
-                      className="rounded"
-                    />
-                    <Label htmlFor="useAI" className="flex items-center gap-2">
-                      Use OpenAI Enhancement
-                      <Badge variant="outline">Optional</Badge>
-                    </Label>
-                  </div>
-                  {useAI && (
-                    <Input
-                      type="password"
-                      placeholder="OpenAI API Key"
-                      value={aiApiKey}
-                      onChange={(e) => setAiApiKey(e.target.value)}
-                    />
-                  )}
-                </div>
-
                 <Button
                   onClick={handleGenerate}
                   disabled={isGenerating}
@@ -284,10 +285,33 @@ export default function Page() {
           <div className="flex flex-col min-h-0">
             <Card className="flex flex-col h-full min-h-0">
               <CardHeader className="flex-shrink-0">
-                <CardTitle>Generated Mock Data</CardTitle>
-                <CardDescription>
-                  Copy and use in your tests or prototypes
-                </CardDescription>
+                {inputMode === 'json' ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>TypeScript Interface Preview</CardTitle>
+                      <Button
+                        onClick={handleUseInterface}
+                        size="sm"
+                        disabled={!editableInterface.trim()}
+                      >
+                        Use This Interface to Generate Mock Data
+                      </Button>
+                    </div>
+                    <CardDescription>
+                      {generatedInterface
+                        ? 'Review and edit the generated interface, then click above to proceed'
+                        : 'Generate an interface from your JSON to preview it here'
+                      }
+                    </CardDescription>
+                  </>
+                ) : (
+                  <>
+                    <CardTitle>Generated Mock Data</CardTitle>
+                    <CardDescription>
+                      Copy and use in your tests or prototypes
+                    </CardDescription>
+                  </>
+                )}
               </CardHeader>
               <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {error && (
@@ -298,7 +322,14 @@ export default function Page() {
                   </div>
                 )}
                 <div className="flex-1 flex flex-col min-h-0">
-                  {output ? (
+                  {inputMode === 'json' ? (
+                    <Textarea
+                      value={editableInterface}
+                      onChange={(e) => setEditableInterface(e.target.value)}
+                      className="font-mono text-sm h-full resize-none"
+                      placeholder="Generate an interface from JSON to see it here..."
+                    />
+                  ) : output ? (
                     <CodeDisplay code={output} language="json" />
                   ) : (
                     <div className="flex items-center justify-center h-full min-h-[400px] text-center text-gray-500">
