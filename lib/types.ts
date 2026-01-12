@@ -20,9 +20,6 @@ export interface InterfaceInfo {
 export interface GenerationConfig {
   count?: number
   seed?: number
-  locale?: string
-  useExamples?: boolean
-  exampleData?: any[]
 }
 
 export interface AIEnhancement {

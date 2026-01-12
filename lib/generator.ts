@@ -6,29 +6,19 @@ export function generateMockData(
   config: GenerationConfig = {},
   enhancements?: AIEnhancement[]
 ): any[] {
-  const { count = 1, seed, locale = 'en' } = config
+  const { count = 1, seed } = config
 
   if (seed !== undefined) {
     faker.seed(seed)
   }
 
-  // Note: Faker.js v8+ handles locale differently, uses import-based locale loading
-  // The locale parameter is kept for future enhancement
-
   const results: any[] = []
-
-  // If we have example data, analyze patterns
-  let examplePatterns: Map<string, any[]> | undefined
-  if (config.useExamples && config.exampleData && config.exampleData.length > 0) {
-    examplePatterns = analyzeExamplePatterns(config.exampleData)
-  }
 
   for (let i = 0; i < count; i++) {
     // Generate data for the first interface (main one)
     if (interfaces.length > 0) {
       const mockData = generateObjectFromInterface(
         interfaces[0],
-        examplePatterns,
         enhancements,
         interfaces
       )
@@ -41,7 +31,6 @@ export function generateMockData(
 
 function generateObjectFromInterface(
   interfaceInfo: InterfaceInfo,
-  examplePatterns?: Map<string, any[]>,
   enhancements?: AIEnhancement[],
   allInterfaces?: InterfaceInfo[]
 ): any {
@@ -54,9 +43,8 @@ function generateObjectFromInterface(
     }
 
     const enhancement = enhancements?.find(e => e.fieldName === propName)
-    const exampleValues = examplePatterns?.get(propName)
 
-    obj[propName] = generateValue(propName, typeInfo, exampleValues, enhancement, allInterfaces)
+    obj[propName] = generateValue(propName, typeInfo, enhancement, allInterfaces)
   }
 
   return obj
@@ -65,15 +53,9 @@ function generateObjectFromInterface(
 function generateValue(
   fieldName: string,
   typeInfo: TypeInfo,
-  exampleValues?: any[],
   enhancement?: AIEnhancement,
   allInterfaces?: InterfaceInfo[]
 ): any {
-  // If we have example values, use them occasionally (40% of the time)
-  if (exampleValues && exampleValues.length > 0 && Math.random() < 0.4) {
-    return exampleValues[Math.floor(Math.random() * exampleValues.length)]
-  }
-
   // Handle literal types
   if (typeInfo.kind === 'literal') {
     return typeInfo.literalValue
@@ -87,11 +69,11 @@ function generateValue(
     return faker.helpers.arrayElement(typeInfo.enumValues)
   }
 
-// Handle interface references (custom types)
+  // Handle interface references (custom types)
   if (typeInfo.kind === 'unknown' && allInterfaces) {
     const referencedInterface = allInterfaces.find(iface => iface.name === typeInfo.name)
     if (referencedInterface) {
-      return generateObjectFromInterface(referencedInterface, undefined, undefined, allInterfaces)
+      return generateObjectFromInterface(referencedInterface, undefined, allInterfaces)
     }
   }
 
@@ -102,7 +84,7 @@ function generateValue(
       : faker.number.int({ min: 1, max: 5 })
 
     return Array.from({ length }, () =>
-      generateValue(fieldName, typeInfo.arrayElementType!, exampleValues, enhancement, allInterfaces)
+      generateValue(fieldName, typeInfo.arrayElementType!, enhancement, allInterfaces)
     )
   }
 

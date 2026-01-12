@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { CodeDisplay } from '@/components/code-display'
 import { parseTypeScriptInterface, validateTypeScript } from '@/lib/parser'
 import { generateMockData } from '@/lib/generator'
-import { analyzeExampleData, inferConstraintsFromExamples } from '@/lib/analyzer'
+import { generateInterfaceFromJSON } from '@/lib/json-to-interface'
 import type { AIEnhancement } from '@/lib/types'
 
 const DEFAULT_INTERFACE = `interface User {
@@ -28,26 +28,51 @@ const DEFAULT_INTERFACE = `interface User {
   tags: string[]
 }`
 
+type InputMode = 'interface' | 'json'
+
 export default function Page() {
+  const [inputMode, setInputMode] = useState<InputMode>('interface')
   const [interfaceCode, setInterfaceCode] = useState(DEFAULT_INTERFACE)
-  const [exampleData, setExampleData] = useState('')
+  const [jsonInput, setJsonInput] = useState('')
+  const [generatedInterface, setGeneratedInterface] = useState('')
   const [count, setCount] = useState(3)
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-  const [insights, setInsights] = useState('')
   const [useAI, setUseAI] = useState(false)
   const [aiApiKey, setAiApiKey] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 
+  const handleGenerateInterface = () => {
+    setError('')
+    setGeneratedInterface('')
+
+    try {
+      if (!jsonInput.trim()) {
+        setError('Please provide JSON data')
+        return
+      }
+
+      const interfaceCode = generateInterfaceFromJSON(jsonInput, 'GeneratedData')
+      setGeneratedInterface(interfaceCode)
+      setInterfaceCode(interfaceCode)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate interface')
+    }
+  }
+
   const handleGenerate = async () => {
     setError('')
     setOutput('')
-    setInsights('')
     setIsGenerating(true)
 
     try {
+      // Use the appropriate interface code
+      const codeToUse = inputMode === 'json' && generatedInterface
+        ? generatedInterface
+        : interfaceCode
+
       // Validate TypeScript
-      const validation = validateTypeScript(interfaceCode)
+      const validation = validateTypeScript(codeToUse)
       if (!validation.valid) {
         setError('TypeScript parsing errors:\n' + validation.errors.join('\n'))
         setIsGenerating(false)
@@ -55,31 +80,11 @@ export default function Page() {
       }
 
       // Parse interfaces
-      const interfaces = parseTypeScriptInterface(interfaceCode)
+      const interfaces = parseTypeScriptInterface(codeToUse)
       if (interfaces.length === 0) {
         setError('No interfaces found. Please define at least one interface.')
         setIsGenerating(false)
         return
-      }
-
-      // Analyze example data if provided
-      let exampleArray: any[] | undefined
-      let constraints: Map<string, AIEnhancement['suggestions']> | undefined
-
-      if (exampleData.trim()) {
-        const analysis = analyzeExampleData(exampleData)
-        if (!analysis.valid) {
-          setError('Example data error: ' + analysis.error)
-          setIsGenerating(false)
-          return
-        }
-        exampleArray = analysis.data
-        setInsights(analysis.insights || '')
-
-        // Infer constraints from examples
-        if (exampleArray) {
-          constraints = inferConstraintsFromExamples(exampleArray)
-        }
       }
 
       // Get AI enhancements if enabled
@@ -90,7 +95,7 @@ export default function Page() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              interface: interfaceCode,
+              interface: codeToUse,
               apiKey: aiApiKey
             })
           })
@@ -106,15 +111,7 @@ export default function Page() {
       }
 
       // Generate mock data
-      const mockData = generateMockData(
-        interfaces,
-        {
-          count,
-          useExamples: !!exampleArray,
-          exampleData: exampleArray
-        },
-        aiEnhancements
-      )
+      const mockData = generateMockData(interfaces, { count }, aiEnhancements)
 
       setOutput(JSON.stringify(mockData, null, 2))
     } catch (err) {
@@ -139,49 +136,96 @@ export default function Page() {
         <div className="grid gap-6 lg:grid-cols-2 flex-1 min-h-0 overflow-auto">
           {/* Input Section */}
           <div className="space-y-6">
+            {/* Input Mode Selector */}
             <Card>
               <CardHeader>
-                <CardTitle>TypeScript Interface</CardTitle>
+                <CardTitle>Input Type</CardTitle>
                 <CardDescription>
-                  Paste your TypeScript interface definition
+                  Choose how to define your data structure
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Textarea
-                  value={interfaceCode}
-                  onChange={(e) => setInterfaceCode(e.target.value)}
-                  className="font-mono text-sm min-h-[300px]"
-                  placeholder="interface MyType { ... }"
-                />
+                <div className="flex gap-2">
+                  <Button
+                    variant={inputMode === 'interface' ? 'default' : 'outline'}
+                    onClick={() => setInputMode('interface')}
+                    className="flex-1"
+                  >
+                    TypeScript Interface
+                  </Button>
+                  <Button
+                    variant={inputMode === 'json' ? 'default' : 'outline'}
+                    onClick={() => setInputMode('json')}
+                    className="flex-1"
+                  >
+                    Example JSON
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Example Data
-                  <Badge variant="outline">Optional</Badge>
-                </CardTitle>
-                <CardDescription>
-                  Provide example JSON to improve mock data realism
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={exampleData}
-                  onChange={(e) => setExampleData(e.target.value)}
-                  className="font-mono text-sm min-h-[150px]"
-                  placeholder='[{ "name": "John", "age": 30 }]'
-                />
-                {insights && (
-                  <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
-                    <p className="text-xs text-blue-400 font-mono whitespace-pre-wrap">
-                      {insights}
-                    </p>
-                  </div>
+            {/* Conditional Input */}
+            {inputMode === 'interface' ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>TypeScript Interface</CardTitle>
+                  <CardDescription>
+                    Paste your TypeScript interface definition
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={interfaceCode}
+                    onChange={(e) => setInterfaceCode(e.target.value)}
+                    className="font-mono text-sm min-h-[300px]"
+                    placeholder="interface MyType { ... }"
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Example JSON</CardTitle>
+                    <CardDescription>
+                      Paste example JSON data to auto-generate interface
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Textarea
+                      value={jsonInput}
+                      onChange={(e) => setJsonInput(e.target.value)}
+                      className="font-mono text-sm min-h-[200px]"
+                      placeholder='[{ "name": "John", "age": 30 }]'
+                    />
+                    <Button
+                      onClick={handleGenerateInterface}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Generate Interface
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {generatedInterface && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        Generated Interface
+                        <Badge>Preview</Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        This interface will be used for mock generation
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <CodeDisplay code={generatedInterface} language="typescript" />
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
+              </>
+            )}
 
             <Card>
               <CardHeader>
