@@ -1,17 +1,27 @@
 'use client'
 
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import React, { useLayoutEffect, useRef, useState } from 'react'
+import { useTheme } from 'next-themes'
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter'
+import json from 'react-syntax-highlighter/dist/esm/languages/prism/json'
+import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx'
+import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
 import { Button } from './ui/button'
-import { useState } from 'react'
+
+SyntaxHighlighter.registerLanguage('typescript', tsx)
+SyntaxHighlighter.registerLanguage('json', json)
 
 interface CodeDisplayProps {
   code: string
   language?: 'typescript' | 'json'
+  showLineNumbers?: boolean
 }
 
-export function CodeDisplay({ code, language = 'json' }: CodeDisplayProps) {
+export const CodeDisplay = React.memo(function CodeDisplay({ code, language = 'json', showLineNumbers = false }: CodeDisplayProps) {
+  const ref = useRef<SyntaxHighlighter & HTMLElement>(null)
   const [copied, setCopied] = useState(false)
+  const { resolvedTheme } = useTheme()
 
   const handleCopy = async () => {
     try {
@@ -22,6 +32,12 @@ export function CodeDisplay({ code, language = 'json' }: CodeDisplayProps) {
       console.error('Failed to copy:', err)
     }
   }
+
+  useLayoutEffect(() => {
+    if (ref.current?.children[0]) {
+      (ref.current.children[0] as HTMLElement).style.lineHeight = '1.1'
+    }
+  }, [resolvedTheme])
 
   return (
     <div className="relative h-full flex flex-col min-h-0">
@@ -37,19 +53,22 @@ export function CodeDisplay({ code, language = 'json' }: CodeDisplayProps) {
       </div>
       <div className="flex-1 overflow-auto min-h-0">
         <SyntaxHighlighter
+          ref={ref}
+          id="SyntaxHighlighter"
           language={language}
-          style={vscDarkPlus}
+          style={resolvedTheme === 'dark' ? vscDarkPlus : vs}
           customStyle={{
             margin: 0,
-            borderRadius: '0.5rem',
             fontSize: '0.875rem',
-            minHeight: '100%'
+            minHeight: '100%',
+            lineHeight: '1.1'
           }}
-          showLineNumbers
+          className="grayscale-50"
+          showLineNumbers={showLineNumbers}
         >
           {code}
         </SyntaxHighlighter>
       </div>
     </div>
   )
-}
+})

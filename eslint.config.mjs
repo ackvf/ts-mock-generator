@@ -1,6 +1,7 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import stylistic from '@stylistic/eslint-plugin'
+import { defineConfig, globalIgnores } from "eslint/config"
+import nextVitals from "eslint-config-next/core-web-vitals"
+import nextTs from "eslint-config-next/typescript"
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -9,10 +10,56 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    "out/**",
+    "dist/**",
     "build/**",
     "next-env.d.ts",
   ]),
-]);
+  {
+    plugins: {
+      '@stylistic': stylistic
+    },
+    rules: {
+      "@stylistic/semi": ["error", "never"],
+      "react-hooks/refs": "off",
+      "react/no-unescaped-entities": "off",
+      "import/order": ["warn", {
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true,
+        },
+        "newlines-between": "always",
+        "distinctGroup": false,
+        "groups": ["builtin", "external", "internal", ["parent", "sibling", "index"]],
+        "pathGroupsExcludedImportTypes": [],
+        "pathGroups": [
+          {
+            "pattern": "react",
+            "group": "external",
+            "position": "before",
+          },
+          {
+            "pattern": "{@/ui,@/ui/**}",
+            "group": "internal",
+            "position": "after",
+          },
+          {
+            "pattern": "@/**",
+            "group": "internal",
+          },
+          {
+            "pattern": "../**",
+            "group": "parent",
+            "position": "before",
+          },
+          {
+            "pattern": "{./,.}",
+            "group": "index",
+            "position": "after",
+          },
+        ],
+      }],
+    }
+  }
+])
 
-export default eslintConfig;
+export default eslintConfig

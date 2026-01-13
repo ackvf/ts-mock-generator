@@ -1,14 +1,19 @@
 # TypeScript Mock Generator
 
-A powerful web application that generates realistic mock data from TypeScript interfaces. Perfect for testing, prototyping, and seeding databases.
+A powerful web application that generates realistic mock data from TypeScript interfaces. Perfect for testing, prototyping, and seeding databases with reproducible results.
 
 ## ✨ Features
 
-- **TypeScript Interface Parsing** — Automatically parse TypeScript interfaces and type definitions
+- **TypeScript Interface Parsing** — Parse complex TypeScript interfaces, type aliases, and advanced types
 - **Smart Field Detection** — Intelligently generates data based on field names (email, phone, address, etc.)
-- **Example Data Analysis** — Optionally provide existing data to make generated mocks more realistic
-- **OpenAI Enhancement** — AI-powered suggestions for better data boundaries and patterns
-- **Multiple Formats** — Support for primitives, arrays, nested objects, enums, unions, and literal types
+- **Template Literal Types** — Full support for TypeScript template literals like `` `${First}-${Last}` ``
+- **Utility Types** — Partial, Required, Pick, Omit, Readonly, Record, Lowercase, Uppercase, Capitalize, Uncapitalize
+- **Collection Types** — Map, Set, Array with smart generation
+- **Intersection & Union Types** — Combine types with `&` and `|` operators
+- **Tuples** — Regular and named tuples: `[string, number]` or `[name: string, age: number]`
+- **Seed Management** — Reproducible results with seed history (last 3 seeds tracked)
+- **Auto-Generation** — Real-time mock data generation as you type
+- **JSON to Interface** — Convert example JSON to TypeScript interfaces automatically
 - **Syntax Highlighting** — Beautiful code display with copy-to-clipboard functionality
 
 ## 🚀 Getting Started
@@ -29,10 +34,11 @@ pnpm dev
 
 ### Basic Usage
 
-1. **Enter TypeScript Interface** — Paste your TypeScript interface in the left panel
-2. **Set Options** — Choose how many records to generate
-3. **Generate** — Click "Generate Mock Data" to create realistic mock data
-4. **Copy** — Use the copy button to copy the JSON output
+1. **Choose Input Mode** — Start with TypeScript Interface or Example JSON
+2. **Enter Your Types** — Paste your TypeScript interface or example JSON data
+3. **Configure Options** — Set number of records and optional seed for reproducibility
+4. **Generate** — Mock data auto-generates as you type, or click the button manually
+5. **Copy** — Use the copy button to copy the JSON output
 
 ### Example Interface
 
@@ -53,111 +59,201 @@ interface User {
 }
 ```
 
-### Using Example Data (Optional)
+### Advanced Type Examples
 
-Provide existing JSON examples to improve realism:
-
-```json
-[
-  { "name": "John Doe", "age": 30, "role": "admin" },
-  { "name": "Jane Smith", "age": 25, "role": "user" }
-]
+**Template Literals:**
+```typescript
+interface Product {
+  sku: `${Category}-${number}-${Size}`
+}
+type Category = 'ELEC' | 'FURN' | 'CLTH'
+type Size = 'SM' | 'MD' | 'LG'
+// Generates: "ELEC-742-MD"
 ```
 
-The generator will analyze patterns and occasionally use similar values.
+**Intersection Types:**
+```typescript
+interface Person {
+  user: { name: string } & { age: number }
+  // Generates: { name: "John", age: 30 }
+}
+```
 
-### AI Enhancement (Optional)
+**Utility Types:**
+```typescript
+interface Config {
+  partial: Partial<User>
+  readonly: Readonly<User>
+  names: Lowercase<string>
+  map: Record<string, number>
+}
+```
 
-Enable OpenAI integration for intelligent suggestions:
+**Tuples:**
+```typescript
+interface Data {
+  point: [number, number]
+  named: [x: number, y: number, label: string]
+}
+```
 
-1. Check "Use OpenAI Enhancement"
-2. Enter your OpenAI API key
-3. The AI will suggest realistic constraints based on field names and context
+### Seed Management
+
+- Leave seed empty for random generation
+- Click recent seeds to reproduce exact results
+- Last 3 seeds are tracked and clickable
+- Use same seed to get identical mock data
 
 ## 🛠️ Technology Stack
 
 - **Next.js 16** — React framework with App Router
-- **TypeScript 5** — Type parsing and validation
-- **Faker.js** — Mock data generation
 - **Tailwind CSS 4** — Styling
-- **shadcn/ui** — UI components
+- **Shadcn/ui + Base UI** — UI components
+- **TypeScript 5** — Type parsing and validation with TypeScript Compiler API
+- **Faker.js** — Mock data generation with seeded randomness
 - **React Syntax Highlighter** — Code display
 
 ## 📁 Project Structure
 
 ```
 ├── app/
-│   ├── api/enhance/     # OpenAI integration API route
 │   ├── page.tsx         # Main generator UI
-│   └── layout.tsx       # App layout
+│   ├── layout.tsx       # App layout
+│   └── globals.css      # Global styles
 ├── components/
 │   ├── ui/              # UI components (shadcn)
-│   └── code-display.tsx # Syntax highlighted code viewer
+│   └── ...              # Custom components
 ├── lib/
 │   ├── parser.ts        # TypeScript interface parser
 │   ├── generator.ts     # Mock data generation engine
-│   ├── analyzer.ts      # Example data analyzer
+│   ├── json-to-interface.ts # JSON to TypeScript converter
 │   └── types.ts         # Shared type definitions
 ```
 
 ## 🎯 Supported Types
 
-- **Primitives**: string, number, boolean, Date
-- **Arrays**: T[]
+### Primitives
+- `string`, `number`, `boolean`, `Date`
+
+### Complex Types
+- **Arrays**: `T[]`, `Array<T>`
 - **Objects**: Nested interfaces and inline types
-- **Enums**: Literal unions ('a' | 'b' | 'c')
-- **Unions**: Multiple type options
-- **Literal Types**: Specific values
-- **Optional Properties**: property?
+- **Enums**: Literal unions `'a' | 'b' | 'c'`
+- **Unions**: Multiple type options `string | number`
+- **Intersections**: Type combinations `Type1 & Type2`
+- **Literal Types**: Specific values `42`, `'hello'`
+- **Optional Properties**: `property?`
+- **Tuples**: `[string, number]`, `[name: string, age: number]`
+- **Parenthesized**: `('admin' | 'user')[]`
+
+### Template Literals
+- Pattern matching: `` `${Type1}-${Type2}` ``
+- Placeholders: `${string}`, `${number}`, `${boolean}`
+- Custom type substitution: `${CustomType}`
+
+### Utility Types
+- **Transformation**: `Partial<T>`, `Required<T>`, `Readonly<T>`, `Pick<T, K>`, `Omit<T, K>`
+- **String Manipulation**: `Lowercase<T>`, `Uppercase<T>`, `Capitalize<T>`, `Uncapitalize<T>`
+- **Async**: `Promise<T>`, `Awaited<T>`
+- **Collections**: `Record<K, V>`
+
+### Collection Types
+- `Map<K, V>` — Generates key-value objects
+- `Set<T>` — Generates arrays of unique values
+- `Array<T>` — Standard array type
+- Index signatures: `{ [key: string]: Type }`
 
 ## 🧠 Smart Field Detection
 
 The generator recognizes common field names and generates appropriate data:
 
+**Personal Information:**
+- `name`, `firstName`, `first`, `lastName`, `last` → Person names
 - `email` → Valid email addresses
+- `username` → Usernames
+- `password` → Secure passwords
 - `phone` → Phone numbers
-- `url`, `website` → URLs
-- `name`, `firstName`, `lastName` → Person names
-- `address`, `street`, `city`, `country` → Location data
+- `avatar`, `image` → Image URLs
 - `age` → Numbers between 18-80
-- `price`, `amount` → Currency values
-- `company` → Company names
-- And many more...
 
-## 🔧 API Routes
+**Location:**
+- `address` → Full addresses
+- `street` → Street names
+- `city` → City names
+- `state`, `province` → State/province names
+- `country` → Country names
+- `zipcode`, `zip`, `postal` → Postal codes
+- `latitude`, `longitude` → Coordinates
 
-### POST /api/enhance
+**Business:**
+- `company`, `organization`, `org` → Company names
+- `job`, `title`, `position` → Job titles
+- `department` → Department names
 
-Enhances type definitions with AI-powered suggestions.
+**Web & Tech:**
+- `url`, `website` → URLs
+- `uuid`, `id` → UUIDs
+- `color` → Color hex codes
 
-**Request:**
-```json
-{
-  "interface": "interface User { ... }",
-  "apiKey": "sk-..."
+**Commerce:**
+- `price`, `amount`, `cost` → Currency values
+- `currency` → Currency codes
+- `product` → Product names
+
+**Numbers:**
+- `year`, `month`, `day` → Date components
+- `hour`, `minute`, `second` → Time components
+- `quantity`, `count` → Positive integers
+- `percent`, `rate`, `rating` → Percentages
+
+**Text:**
+- `description`, `bio`, `text`, `content` → Lorem ipsum text
+
+### Type Alias Hints
+
+Use semantic type alias names for better generation:
+
+```typescript
+type First = string  // Generates first names
+type Age = number    // Generates realistic ages
+type Email = string  // Generates email addresses
+
+interface Person {
+  name: First        // Uses "First" hint → "Jane"
+  age: Age          // Uses "Age" hint → 28
+  contact: Email    // Uses "Email" hint → "jane@example.com"
 }
 ```
 
-**Response:**
-```json
-{
-  "enhancements": [
-    {
-      "fieldName": "age",
-      "suggestions": {
-        "min": 18,
-        "max": 100,
-        "description": "Adult age range"
-      }
-    }
-  ]
-}
-```
+## 🎯 Special Features
 
-## 📝 License
+### Reproducible Results
+- Set a seed for deterministic generation
+- Same seed always produces identical data
+- Great for testing and demos
+
+### Auto-Generation
+- Mock data updates automatically as you type
+- Manual generation shows validation errors
+- Auto-generation suppresses errors for smooth editing
+
+### Error Tolerance
+The generator handles TypeScript patterns that technically violate rules:
+- Index signatures with type aliases: `{ [key: First]: Age }`
+- Complex template literals (excessively deep types)
+- These work fine for generation despite TypeScript warnings
+
+### Explore Capabilities
+Click "🚀 Explore Capabilities" to load a comprehensive example showcasing all supported features including template literals, utility types, tuples, and more.
+
+## � License
 
 MIT
 
 ## 🤝 Contributing
 
 Contributions welcome! Feel free to open issues or submit pull requests.
+
+---
+
+**Vibecoded** with Copilot & 🧡 using Next.js, TypeScript, Faker.js, Tailwind and Shadcn
