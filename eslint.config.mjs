@@ -19,6 +19,7 @@ const eslintConfig = defineConfig([
       '@stylistic': stylistic
     },
     rules: {
+      "@next/next/no-img-element": "off",
       "@stylistic/semi": ["error", "never"],
       "react-hooks/refs": "off",
       "react/no-unescaped-entities": "off",

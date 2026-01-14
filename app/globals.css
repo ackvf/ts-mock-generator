@@ -146,3 +146,40 @@
     @apply border-neutral-500;
   }
 }
+
+.alogo {
+	position: relative;
+}
+.logo {
+  will-change: filter, opacity;
+	transition: filter 300ms, opacity 300ms;
+}
+.logo.chill {
+	position: absolute;
+	left: 0;
+  top: 0;
+}
+.alogo:hover .logo {
+  filter: drop-shadow(0 0 4px var(--color-foreground));
+}
+.alogo:not(:hover) .logo.spin, .alogo:hover .logo.chill {
+	opacity: 1;
+}
+.alogo:not(:hover) .logo.chill, .alogo:hover .logo.spin {
+	opacity: 0;
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logo.spin {
+    animation: logo-spin infinite 20s linear;
+  }
+}
